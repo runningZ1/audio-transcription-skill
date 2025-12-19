@@ -1,30 +1,32 @@
-# Audio Transcription Skill
+# 音频转录 Skill
 
-A Claude Code Skill for transcribing audio and video files to text using Volcengine Doubao ASR Flash API.
+[English](README_EN.md) | 简体中文
 
-## Features
+基于火山引擎豆包语音识别 Flash API 的 Claude Code Skill，支持将音频和视频文件转录为文字。
 
-- **Multi-format Support** - Audio (MP3, WAV, OGG, M4A, FLAC, AAC) and Video (MP4, MKV, AVI, MOV, WMV, FLV, WebM)
-- **Flexible Input** - Support URL and local file upload
-- **Auto Video Conversion** - Automatically extract audio from video files via FFmpeg
-- **Synchronous Mode** - Fast single-request transcription using Flash API
-- **Word-level Timestamps** - Get precise timing for each word
-- **CLI & Python API** - Use via command line or import as module
+## 功能特性
 
-## Requirements
+- **多格式支持** - 音频（MP3、WAV、OGG、M4A、FLAC、AAC）和视频（MP4、MKV、AVI、MOV、WMV、FLV、WebM）
+- **灵活输入** - 支持 URL 链接和本地文件上传
+- **视频自动转换** - 通过 FFmpeg 自动从视频中提取音轨
+- **同步模式** - 使用 Flash API 快速单次请求转录
+- **词级时间戳** - 获取每个词的精确时间信息
+- **命令行与 Python API** - 支持命令行使用或作为模块导入
+
+## 环境要求
 
 - Python 3.7+
-- [requests](https://pypi.org/project/requests/) library
-- [FFmpeg](https://ffmpeg.org/) (required for video files)
-- Volcengine Account with ASR service enabled
+- [requests](https://pypi.org/project/requests/) 库
+- [FFmpeg](https://ffmpeg.org/)（处理视频文件时需要）
+- 火山引擎账号并开通语音识别服务
 
-### Install Dependencies
+### 安装依赖
 
 ```bash
-# Python library
+# Python 库
 pip install requests
 
-# FFmpeg (for video processing)
+# FFmpeg（用于视频处理）
 # Windows
 winget install ffmpeg
 
@@ -35,15 +37,15 @@ brew install ffmpeg
 apt install ffmpeg
 ```
 
-## Configuration
+## 配置
 
-### Get API Credentials
+### 获取 API 凭证
 
-1. Visit [Volcengine Console](https://console.volcengine.com/speech/app)
-2. Create an application or use existing one
-3. Get your **App ID** and **Access Token**
+1. 访问 [火山引擎控制台](https://console.volcengine.com/speech/app)
+2. 创建应用或使用已有应用
+3. 获取 **App ID** 和 **Access Token**
 
-### Set Environment Variables
+### 设置环境变量
 
 ```bash
 # Linux/macOS
@@ -59,34 +61,34 @@ set VOLCENGINE_APP_ID=your_app_id
 set VOLCENGINE_ACCESS_TOKEN=your_access_token
 ```
 
-Or copy the example file and edit:
+或者复制示例文件并编辑：
 
 ```bash
 cp scripts/.env.example .env
-# Edit .env with your credentials
+# 编辑 .env 填入真实凭证
 ```
 
-## Usage
+## 使用方法
 
-### Command Line
+### 命令行
 
 ```bash
-# Transcribe from URL
+# 从 URL 转录
 python scripts/transcribe.py --url "https://example.com/audio.mp3"
 
-# Transcribe local audio file
+# 转录本地音频文件
 python scripts/transcribe.py --file "./recording.mp3"
 
-# Transcribe local video file
+# 转录本地视频文件
 python scripts/transcribe.py --file "./video.mp4"
 
-# Output text only
+# 仅输出文字
 python scripts/transcribe.py --file "./audio.mp3" --text-only
 
-# Save to file
+# 保存到文件
 python scripts/transcribe.py --file "./video.mp4" -o result.json
 
-# With explicit credentials
+# 指定凭证
 python scripts/transcribe.py --file "./audio.mp3" --appid YOUR_ID --token YOUR_TOKEN
 ```
 
@@ -96,42 +98,42 @@ python scripts/transcribe.py --file "./audio.mp3" --appid YOUR_ID --token YOUR_T
 import os
 from scripts.transcribe import AudioTranscriber, get_text, get_duration
 
-# Initialize
+# 初始化
 transcriber = AudioTranscriber(
     appid=os.environ["VOLCENGINE_APP_ID"],
     token=os.environ["VOLCENGINE_ACCESS_TOKEN"]
 )
 
-# Transcribe from URL
+# 从 URL 转录
 result = transcriber.transcribe(url="https://example.com/audio.mp3")
 
-# Transcribe local audio file
+# 转录本地音频文件
 result = transcriber.transcribe(file="./recording.mp3")
 
-# Transcribe local video file (auto-converts to audio)
+# 转录本地视频文件（自动转换为音频）
 result = transcriber.transcribe(file="./video.mp4")
 
-# Get results
-print(get_text(result))  # Full text
-print(f"Duration: {get_duration(result):.1f}s")
+# 获取结果
+print(get_text(result))  # 完整文字
+print(f"时长: {get_duration(result):.1f}秒")
 ```
 
-## Supported Formats
+## 支持的格式
 
-| Type | Formats |
-|------|---------|
-| Audio | mp3, wav, ogg, m4a, flac, aac |
-| Video | mp4, mkv, avi, mov, wmv, flv, webm, ts, m4v |
+| 类型 | 格式 |
+|------|------|
+| 音频 | mp3, wav, ogg, m4a, flac, aac |
+| 视频 | mp4, mkv, avi, mov, wmv, flv, webm, ts, m4v |
 
-## Limits
+## 限制
 
-| Item | Limit |
-|------|-------|
-| Audio duration | Max 2 hours |
-| File size | Max 100MB |
-| Recommended upload | < 20MB |
+| 项目 | 限制 |
+|------|------|
+| 音频时长 | 最长 2 小时 |
+| 文件大小 | 最大 100MB |
+| 建议上传大小 | < 20MB |
 
-## Response Format
+## 响应格式
 
 ```json
 {
@@ -139,15 +141,15 @@ print(f"Duration: {get_duration(result):.1f}s")
     "duration": 5230
   },
   "result": {
-    "text": "Full transcription text here.",
+    "text": "完整的转录文字在这里。",
     "utterances": [
       {
-        "text": "Sentence one.",
+        "text": "第一句话。",
         "start_time": 0,
         "end_time": 1500,
         "words": [
           {
-            "text": "Sentence",
+            "text": "第一",
             "start_time": 0,
             "end_time": 800,
             "confidence": 0.98
@@ -159,25 +161,26 @@ print(f"Duration: {get_duration(result):.1f}s")
 }
 ```
 
-## Project Structure
+## 项目结构
 
 ```
 audio-transcription-skill/
-├── SKILL.md              # Claude Code Skill definition
-├── README.md             # This file
-├── .gitignore            # Git ignore rules
+├── SKILL.md              # Claude Code Skill 定义
+├── README.md             # 中文文档（本文件）
+├── README_EN.md          # 英文文档
+├── .gitignore            # Git 忽略规则
 ├── reference/
-│   ├── api.md            # API documentation
-│   └── response.md       # Response format documentation
+│   ├── api.md            # API 文档
+│   └── response.md       # 响应格式文档
 ├── scripts/
-│   ├── transcribe.py     # Main transcription script
-│   └── .env.example      # Environment variables template
+│   ├── transcribe.py     # 主转录脚本
+│   └── .env.example      # 环境变量模板
 └── examples/
-    ├── basic.md          # Basic usage examples
-    └── advanced.md       # Advanced usage examples
+    ├── basic.md          # 基础使用示例
+    └── advanced.md       # 高级使用示例
 ```
 
-## Error Handling
+## 错误处理
 
 ```python
 from scripts.transcribe import (
@@ -189,22 +192,22 @@ from scripts.transcribe import (
 try:
     result = transcriber.transcribe(file="./video.mp4")
 except FileNotFoundError:
-    print("File not found")
+    print("文件未找到")
 except FFmpegNotFoundError:
-    print("FFmpeg not installed - required for video files")
+    print("FFmpeg 未安装 - 处理视频文件时需要")
 except TranscriptionError as e:
-    print(f"API error [{e.code}]: {e.message}")
+    print(f"API 错误 [{e.code}]: {e.message}")
 ```
 
-## API Reference
+## API 参考
 
-See [reference/api.md](reference/api.md) for detailed API documentation.
+详细 API 文档请参阅 [reference/api.md](reference/api.md)。
 
-## License
+## 许可证
 
 MIT License
 
-## Acknowledgments
+## 致谢
 
-- [Volcengine Doubao ASR](https://www.volcengine.com/docs/6561/1631584) - Speech recognition API
-- [FFmpeg](https://ffmpeg.org/) - Audio/video processing
+- [火山引擎豆包语音识别](https://www.volcengine.com/docs/6561/1631584) - 语音识别 API
+- [FFmpeg](https://ffmpeg.org/) - 音视频处理
