@@ -17,6 +17,7 @@
 
 - Python 3.7+
 - [requests](https://pypi.org/project/requests/) 库
+- [python-dotenv](https://pypi.org/project/python-dotenv/) 库（可选，用于 .env 文件支持）
 - [FFmpeg](https://ffmpeg.org/)（处理视频文件时需要）
 - 火山引擎账号并开通语音识别服务
 
@@ -24,7 +25,7 @@
 
 ```bash
 # Python 库
-pip install requests
+pip install requests python-dotenv
 
 # FFmpeg（用于视频处理）
 # Windows
@@ -45,7 +46,27 @@ apt install ffmpeg
 2. 创建应用或使用已有应用
 3. 获取 **App ID** 和 **Access Token**
 
-### 设置环境变量
+### 配置凭证（优先级从高到低）
+
+#### 方式 1：.env 文件（推荐）
+
+创建 `.env` 文件并添加凭证：
+
+```bash
+# .env 文件内容
+VOLCENGINE_APP_ID=your_app_id
+VOLCENGINE_ACCESS_TOKEN=your_access_token
+```
+
+将 `.env` 文件放置在以下任一位置：
+
+| 位置 | 说明 |
+|------|------|
+| `~/.volc-asr/.env` | 用户配置目录（全局生效）|
+| `audio-transcription-skill/.env` | Skill 脚本目录 |
+| `.env` | 当前工作目录（项目根目录）|
+
+#### 方式 2：环境变量
 
 ```bash
 # Linux/macOS
@@ -61,12 +82,15 @@ set VOLCENGINE_APP_ID=your_app_id
 set VOLCENGINE_ACCESS_TOKEN=your_access_token
 ```
 
-或者复制示例文件并编辑：
+#### 方式 3：命令行参数（临时覆盖）
 
 ```bash
-cp scripts/.env.example .env
-# 编辑 .env 填入真实凭证
+python scripts/transcribe.py --file "audio.mp3" \
+  --appid "YOUR_APP_ID" \
+  --token "YOUR_ACCESS_TOKEN"
 ```
+
+**凭证优先级：** 命令行参数 > .env 文件 > 环境变量
 
 ## 使用方法
 
@@ -177,8 +201,58 @@ audio-transcription-skill/
 │   └── .env.example      # 环境变量模板
 └── examples/
     ├── basic.md          # 基础使用示例
-    └── advanced.md       # 高级使用示例
+    ├── advanced.md       # 高级使用示例
+    └── realworld-claude-code.md  # Claude Code 实战案例
 ```
+
+## 注意事项
+
+### 安全最佳实践
+
+| 方式 | 安全性 | 推荐场景 |
+|------|--------|----------|
+| `.env` 文件 | ⭐⭐⭐⭐⭐ | 日常使用（推荐）|
+| 环境变量 | ⭐⭐⭐⭐⭐ | 服务器/CI 环境 |
+| 命令行参数 | ⭐ | 仅用于测试/临时覆盖 |
+
+**为什么不推荐命令行传递凭证？**
+- 会进入 Shell 历史记录
+- 在 `ps`/任务管理器中可见
+- 可能被日志文件记录
+
+**推荐配置：**
+```bash
+# 创建用户级配置目录
+mkdir -p ~/.volc-asr
+
+# 创建 .env 文件
+cat > ~/.volc-asr/.env << EOF
+VOLCENGINE_APP_ID=your_app_id
+VOLCENGINE_ACCESS_TOKEN=your_access_token
+EOF
+
+# 确保文件权限安全
+chmod 600 ~/.volc-asr/.env
+```
+
+### Claude Code 环境使用
+
+**更新：** 现在 .env 文件功能已完善，**推荐使用 .env 文件配置凭证**：
+
+```bash
+# 推荐 ✅ - 使用 .env 文件（安全）
+# 在 skill 目录创建 .env 文件后，直接运行
+python scripts/transcribe.py --file "video.mp4" --text-only
+
+# 或使用用户级配置（所有项目通用）
+mkdir ~/.volc-asr
+# 将 .env 文件放置在 ~/.volc-asr/.env
+
+# 临时测试 - 使用命令行参数（注意安全风险）
+python scripts/transcribe.py --file "video.mp4" --appid "xxx" --token "xxx"
+```
+
+详细实战案例请参阅 [examples/realworld-claude-code.md](examples/realworld-claude-code.md)。
 
 ## 错误处理
 

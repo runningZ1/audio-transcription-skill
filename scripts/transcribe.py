@@ -21,7 +21,18 @@ Environment variables:
 
 Requirements:
     - requests: pip install requests
+    - python-dotenv (optional): pip install python-dotenv
     - FFmpeg: Required for video file processing (https://ffmpeg.org)
+
+Configuration:
+    Create a .env file with your credentials (recommended):
+        VOLCENGINE_APP_ID=your_app_id
+        VOLCENGINE_ACCESS_TOKEN=your_access_token
+
+    Place .env in one of these locations:
+        - Script directory (audio-transcription-skill/.env)
+        - User config directory (~/.volc-asr/.env)
+        - Current working directory (.env)
 """
 
 import argparse
@@ -39,9 +50,18 @@ from typing import Optional, Tuple, Union
 
 try:
     import requests
+    import urllib3
+    # Disable SSL warnings for proxy environments
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 except ImportError:
     print("Error: requests library required. Install with: pip install requests")
     sys.exit(1)
+
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
 
 # Logging configuration
 logging.basicConfig(
@@ -65,6 +85,59 @@ STATUS_SILENT = "20000003"
 # Supported formats
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"}
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".ts", ".m4v"}
+
+# .env file names
+DOTENV_FILES = [".env", ".env.local"]
+
+
+def load_env_files():
+    """
+    Load .env files from multiple locations with priority.
+    Files loaded later override values from earlier files.
+
+    Search order (first to last):
+        1. Script directory
+        2. User home directory (~/.volc-asr/.env)
+        3. Current working directory
+        4. Parent directories (up to root)
+    """
+    if not DOTENV_AVAILABLE:
+        return
+
+    # Paths to search for .env files
+    search_paths = []
+
+    # 1. Script directory
+    script_dir = Path(__file__).parent.parent
+    search_paths.append(script_dir)
+
+    # 2. User config directory
+    user_config_dir = Path.home() / ".volc-asr"
+    search_paths.append(user_config_dir)
+
+    # 3. Current working directory and parents
+    cwd = Path.cwd()
+    search_paths.append(cwd)
+
+    # Add parent directories
+    for parent in cwd.parents:
+        search_paths.append(parent)
+        # Stop at reasonable depth (e.g., git root or drive root)
+        if (parent / ".git").exists() or parent.parent == parent:
+            break
+
+    # Load .env files from search paths
+    loaded_files = []
+    for base_path in search_paths:
+        for env_file in DOTENV_FILES:
+            env_path = base_path / env_file
+            if env_path.exists() and str(env_path) not in loaded_files:
+                load_dotenv(env_path, override=False)
+                loaded_files.append(str(env_path))
+                logger.debug(f"Loaded environment from: {env_path}")
+
+    if loaded_files:
+        logger.info(f"Loaded {len(loaded_files)} .env file(s)")
 
 
 class TranscriptionError(Exception):
@@ -308,7 +381,8 @@ class AudioTranscriber:
             API_URL,
             json=body,
             headers=headers,
-            timeout=timeout
+            timeout=timeout,
+            verify=False  # Disable SSL verification for proxy environments
         )
 
         status_code = response.headers.get("X-Api-Status-Code", "")
@@ -338,6 +412,9 @@ def get_duration(result: dict) -> float:
 
 
 def main():
+    # Load .env files first
+    load_env_files()
+
     parser = argparse.ArgumentParser(
         description="Volcengine Doubao ASR Flash - Audio/Video Transcription",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -361,6 +438,20 @@ Examples:
     # With explicit credentials
     python transcribe.py --file "./audio.mp3" --appid YOUR_ID --token YOUR_TOKEN
 
+Credentials (priority: CLI args > .env file > environment variables):
+    1. Create a .env file in one of these locations:
+       - Script directory: audio-transcription-skill/.env
+       - User config: ~/.volc-asr/.env
+       - Project root: .env (current directory)
+
+    2. Add your credentials to .env:
+       VOLCENGINE_APP_ID=your_app_id
+       VOLCENGINE_ACCESS_TOKEN=your_access_token
+
+    3. Or use environment variables:
+       export VOLCENGINE_APP_ID='your_app_id'
+       export VOLCENGINE_ACCESS_TOKEN='your_token'
+
 Supported formats:
     Audio: mp3, wav, ogg, m4a, flac, aac
     Video: mp4, mkv, avi, mov, wmv, flv, webm, ts, m4v (requires FFmpeg)
@@ -371,28 +462,38 @@ Supported formats:
     input_group.add_argument("--url", help="Audio file URL")
     input_group.add_argument("--file", "-f", help="Local audio or video file path")
 
-    parser.add_argument("--appid", help="Volcengine App ID (default: env VOLCENGINE_APP_ID)")
-    parser.add_argument("--token", help="Volcengine Access Token (default: env VOLCENGINE_ACCESS_TOKEN)")
+    parser.add_argument("--appid", help="Volcengine App ID (overrides .env and env vars)")
+    parser.add_argument("--token", help="Volcengine Access Token (overrides .env and env vars)")
     parser.add_argument("--text-only", action="store_true", help="Output text only")
     parser.add_argument("--output", "-o", help="Output file path")
     parser.add_argument("--timeout", type=float, default=300.0, help="Request timeout in seconds (default: 300)")
     parser.add_argument("--keep-temp", action="store_true", help="Keep temporary audio file (for video input)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--no-env", action="store_true", help="Skip loading .env files")
 
     args = parser.parse_args()
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    # Get credentials
+    # Get credentials (priority: CLI args > .env > environment variables)
     appid = args.appid or os.environ.get("VOLCENGINE_APP_ID")
     token = args.token or os.environ.get("VOLCENGINE_ACCESS_TOKEN")
 
     if not appid or not token:
-        print("Error: Credentials required")
-        print("Set via --appid/--token or environment variables:")
-        print("  export VOLCENGINE_APP_ID='your_app_id'")
-        print("  export VOLCENGINE_ACCESS_TOKEN='your_token'")
+        print("Error: API credentials required")
+        print("\nPlease provide credentials in one of these ways:")
+        print("  1. Create a .env file with:")
+        print("     VOLCENGINE_APP_ID=your_app_id")
+        print("     VOLCENGINE_ACCESS_TOKEN=your_access_token")
+        print("     Place it in: script dir, ~/.volc-asr/, or current directory")
+        print("  2. Set environment variables:")
+        print("     export VOLCENGINE_APP_ID='your_app_id'")
+        print("     export VOLCENGINE_ACCESS_TOKEN='your_token'")
+        print("  3. Use CLI arguments:")
+        print("     --appid YOUR_ID --token YOUR_TOKEN")
+        print("\nNote: python-dotenv is recommended for .env support")
+        print("      Install with: pip install python-dotenv")
         sys.exit(1)
 
     # Check FFmpeg for video files
