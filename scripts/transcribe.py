@@ -470,6 +470,7 @@ Supported formats:
     parser.add_argument("--keep-temp", action="store_true", help="Keep temporary audio file (for video input)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--no-env", action="store_true", help="Skip loading .env files")
+    parser.add_argument("--no-auto-save", action="store_true", help="Disable auto-save to video directory")
 
     args = parser.parse_args()
 
@@ -537,6 +538,16 @@ Supported formats:
         duration = get_duration(result)
         text_len = len(get_text(result))
         logger.info(f"Duration: {duration:.1f}s, Text length: {text_len} chars")
+
+        # Auto-save to video directory (if file input and not disabled)
+        if args.file and not args.no_auto_save:
+            auto_save_path = Path(args.file).with_suffix(".txt")
+            try:
+                with open(auto_save_path, "w", encoding="utf-8") as f:
+                    f.write(get_text(result))
+                logger.info(f"Auto-saved to: {auto_save_path}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-save: {e}")
 
     except FileNotFoundError as e:
         logger.error(f"File not found: {e}")
